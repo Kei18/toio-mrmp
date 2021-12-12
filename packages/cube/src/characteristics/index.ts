@@ -32,5 +32,6 @@ import { Event as IdEvent } from './id-characteristic'
 import { Event as SensorEvent } from './sensor-characteristic'
 import { Event as ButtonEvent } from './button-characteristic'
 import { Event as BatteryEvent } from './battery-characteristic'
+import { Event as MotorEvent } from './motor-characteristic'
 
-export interface Event extends IdEvent, SensorEvent, ButtonEvent, BatteryEvent {}
+export interface Event extends IdEvent, SensorEvent, ButtonEvent, BatteryEvent, MotorEvent {}

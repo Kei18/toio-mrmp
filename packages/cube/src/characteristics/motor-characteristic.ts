@@ -16,7 +16,7 @@ import { MotorSpec, MoveToTarget, MoveToOptions, MotorResponse } from './specs/m
  *
  * @hidden
  */
-interface Event {
+export interface Event {
   'motor:response': (operationId: number, reason: number) => void
 }
 
@@ -30,7 +30,7 @@ export class MotorCharacteristic {
 
   private readonly spec = new MotorSpec()
 
-  private readonly eventEmitter: TypedEmitter<Event> = new EventEmitter() as TypedEmitter<Event>
+  private readonly eventEmitter: TypedEmitter<Event>
 
   private bleProtocolVersion?: string
 
@@ -38,12 +38,14 @@ export class MotorCharacteristic {
 
   private pendingResolve: (() => void) | null = null
 
-  public constructor(characteristic: Characteristic) {
+  public constructor(characteristic: Characteristic, eventEmitter: EventEmitter) {
     this.characteristic = characteristic
     if (this.characteristic.properties.includes('notify')) {
       this.characteristic.on('data', this.onData.bind(this))
       this.characteristic.subscribe()
     }
+
+    this.eventEmitter = eventEmitter as TypedEmitter<Event>
   }
 
   public init(bleProtocolVersion: string): void {

@@ -333,7 +333,7 @@ export class Cube {
           new IdCharacteristic(characteristic, this.eventEmitter)
           break
         case MotorCharacteristic.UUID:
-          this.motorCharacteristic = new MotorCharacteristic(characteristic)
+          this.motorCharacteristic = new MotorCharacteristic(characteristic, this.eventEmitter)
           break
         case LightCharacteristic.UUID:
           this.lightCharacteristic = new LightCharacteristic(characteristic)
