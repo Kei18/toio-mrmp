@@ -1,0 +1,41 @@
+field:
+  x: 350
+  y: 700
+  size: 190
+obstacles:
+agents:
+  - x_init: 370
+    y_init: 720
+    x_goal: 460
+    y_goal: 820
+    rad: 18
+  - x_init: 370
+    y_init: 860
+    x_goal: 410
+    y_goal: 785
+    rad: 18
+  - x_init: 483
+    y_init: 809
+    x_goal: 432
+    y_goal: 730
+    rad: 18
+  - x_init: 438
+    y_init: 728
+    x_goal: 418
+    y_goal: 866
+    rad: 18
+  - x_init: 370
+    y_init: 779
+    x_goal: 518
+    y_goal: 775
+    rad: 18
+  - x_init: 513
+    y_init: 721
+    x_goal: 460
+    y_goal: 860
+    rad: 18
+  - x_init: 420
+    y_init: 824
+    x_goal: 370
+    y_goal: 726
+    rad: 18
