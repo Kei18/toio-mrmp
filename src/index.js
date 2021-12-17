@@ -3,28 +3,49 @@ const { NearScanner } = require('@toio/scanner');
 const { WebSocket } = require("ws");
 const yaml = require('js-yaml');
 
+let CONFIG = yaml.load(fs.readFileSync(process.argv[2], 'utf8'));
+const num_agents = CONFIG["instance"]["agents"].length;
+const MAX_SPEED = CONFIG["robots"]["max_speed"];
+if (process.argv.length > 3 && process.argv[3] === "reverse") {
+  for (let i = 0; i < num_agents; ++i) {
+    let tmp_x = CONFIG["instance"]["agents"][i]["x_init"];
+    CONFIG["instance"]["agents"][i]["x_init"] = CONFIG["instance"]["agents"][i]["x_goal"];
+    CONFIG["instance"]["agents"][i]["x_goal"] = tmp_x;
 
-const ws = new WebSocket("ws://127.0.0.1:8081");
-const INSTANCE = yaml.load(fs.readFileSync(process.argv[2], 'utf8'));
-const num_agents = INSTANCE["agents"].length;
+    let tmp_y = CONFIG["instance"]["agents"][i]["y_init"];
+    CONFIG["instance"]["agents"][i]["y_init"] = CONFIG["instance"]["agents"][i]["y_goal"];
+    CONFIG["instance"]["agents"][i]["y_goal"] = tmp_y;
+  }
+}
 
-ws.on('open', () => {
-  toioSetup(num_agents).then(cubes => {
-    setTimeout(() => {
-      msg = JSON.stringify(INSTANCE);
-      console.log("request plan: %s", msg);
-      ws.send(msg);
-    }, 2000);
+toioSetup(num_agents).then(cubes => {
+  const url = "ws://" + CONFIG["server"]["address"] + ":" + String(CONFIG["server"]["port"]);
+  console.log("try to connect", url);
+  const ws = new WebSocket(url);
+  ws.on('open', () => {
+    // request
+    msg = JSON.stringify(CONFIG["instance"]);
+    console.log("request plan");
+    ws.send(msg);
 
     ws.on("message", (data) => {
-      console.log('received: %s', data);
-      execute(cubes, JSON.parse(data));
+      console.log("received instructions");
+      cubes.forEach(cube => cube.playPresetSound(1));
+      msg = JSON.parse(data);
+      console.log("%s", data);
+      if (msg["status"] === "success") {
+        console.log("planning: success");
+        execute(cubes, msg["instructions"]);
+      } else {
+        console.log("planning: failure");
+        process.exit(0);
+      }
     });
   });
 });
 
 function moveTo(cube, inst) {
-  cube.moveTo([{x: inst[0], y: inst[1] }], {maxSpeed: 80, moveType: 2});
+  cube.moveTo([{x: inst[0], y: inst[1] }], {maxSpeed: MAX_SPEED, moveType: 2, speedType: 3});
 }
 
 async function execute(cubes, instructions) {
@@ -35,6 +56,7 @@ async function execute(cubes, instructions) {
     let cube = cubes[i];
     cube.on("motor:response", operation_id => {
       action_done = instructions[i][operation_id - 2];
+      console.log(i + 1, action_done["id"]);
       action_done["suc"].forEach((child) => {
         let j = child[0]-1;
         let id_j = child[1];
@@ -51,55 +73,33 @@ async function execute(cubes, instructions) {
       // check termination
       if (action_done["suc"].filter(ele => ele[0]-1 == i).length == 0) {
         ++fin_agents_num;
+        cube.playPresetSound(2);
         if (fin_agents_num >= num_agents) {
-          process.exit(0);
+          setTimeout(() => {process.exit(0);}, 500);
         }
       }
     });
   }
 
+  // initiate
   for (let i = 0; i < num_agents; ++i) {
     let inst = instructions[i][0];
-    moveTo(cubes[i], [inst["x_to"], inst["y_to"]]);
+    if (inst["pre"].length == 0) moveTo(cubes[i], [inst["x_to"], inst["y_to"]]);
   }
 }
-
-
-// async function execute(cubes, instructions) {
-
-//   function moveOneStep(t) {
-//     for (let i = 0; i < num_agents; ++i) moveTo(cubes[i], instructions[t][i]);
-//   }
-
-//   let GLOBAL_STEP = 0;
-//   let CONFIG = [];
-//   for (let i = 0; i < num_agents; ++i) {
-//     CONFIG.push(0);
-//     cubes[i].on("motor:response", operation_id => {
-//       CONFIG[i] = operation_id;
-//       if (CONFIG.every(x => x == operation_id)) {
-//         GLOBAL_STEP += 1;
-
-//         if (GLOBAL_STEP < instructions.length) {
-//           moveOneStep(GLOBAL_STEP);
-//         } else {
-//           setTimeout(() => {process.exit(0);}, 1000);
-//         }
-//       }
-//     });
-//   }
-//   moveOneStep(1);
-// }
 
 async function toioSetup(num_agents) {
   let cubes = await new NearScanner(num_agents).start();
   cubes.sort(function(a, b) { return (a.id < b.id) ? 1 : -1; });
+  let setup_cube_num = 0;
   for (let i = 0; i < num_agents; ++i) {
-    await cubes[i].connect();
-    let c = INSTANCE["agents"][i];
-    moveTo(cubes[i], [c["x_init"], c["y_init"]]);
+    let cube = await cubes[i].connect();
+    let c = CONFIG["instance"]["agents"][i];
+    moveTo(cube, [c["x_init"], c["y_init"]]);
+    cube.on("motor:response", (data) => { ++setup_cube_num; });
   }
-  await sleep(1000);
+  while (setup_cube_num < num_agents) await sleep(500);
+  cubes.forEach((cube) => { cube.off("motor:response", (e) => {}); });
   return cubes;
 };
 
