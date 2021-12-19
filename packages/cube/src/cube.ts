@@ -120,6 +120,12 @@ export class Cube {
     return this
   }
 
+  public once<E extends keyof Event>(event: E, listener: Event[E]): this {
+    const typedEmitter = this.eventEmitter as TypedEmitter<Event>
+    typedEmitter.once(event, listener)
+    return this
+  }
+
   //
   // ID Detection
   //
