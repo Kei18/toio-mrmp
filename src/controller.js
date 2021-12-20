@@ -2,19 +2,18 @@
 const { Server } = require("socket.io");
 const { ArgumentParser } = require("argparse");
 const { WebSocket } = require("ws");
-const fs = require('fs');
-const yaml = require('js-yaml');
-const { sleep } = require("./utils");
+const { sleep, get_config } = require("./utils");
 
 const parser = new ArgumentParser({});
 parser.add_argument('-i', '--instance', {required: true});
 parser.add_argument('-v', '--max_speed', {help: "max_speed", default: 80});
 parser.add_argument('-p', '--port', {default: 3000});
+parser.add_argument('-k', '--num_agents', {default: 1000});
 parser.add_argument('-w', '--wait_time', {default: 2000});
 const args = parser.parse_args();
 
 // read problem instance
-const CONFIG = yaml.load(fs.readFileSync(args.instance, 'utf8'));
+const CONFIG = get_config(args);
 const num_agents = CONFIG["instance"]["agents"].length;
 
 // start server
@@ -109,7 +108,7 @@ const setup = async () => {
   // receive message
   ws.on("message", (data) => {
     console.log("received instructions");
-    let msg = JSON.parse(data);
+    const msg = JSON.parse(data);
     if (msg.status === "success") {
       console.log("planning: success");
       execute(msg.instructions, sockets, init_operation_id_arr);
