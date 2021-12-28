@@ -2,7 +2,7 @@
 const { Server } = require("socket.io");
 const { ArgumentParser } = require("argparse");
 const { WebSocket } = require("ws");
-const { sleep, get_config } = require("./utils");
+const { sleep, get_config, get_consistent_cut } = require("./utils");
 
 const parser = new ArgumentParser({});
 parser.add_argument('-i', '--instance', {required: true});
@@ -10,6 +10,7 @@ parser.add_argument('-v', '--max_speed', {help: "max_speed", default: 80});
 parser.add_argument('-p', '--port', {default: 3000});
 parser.add_argument('-k', '--num_agents', {default: 1000});
 parser.add_argument('-w', '--wait_time', {default: 2000});
+parser.add_argument('-r', '--reversed', {default: false});
 const args = parser.parse_args();
 
 // read problem instance
@@ -106,12 +107,12 @@ const setup = async () => {
   });
 
   // receive message
-  ws.on("message", (data) => {
+  ws.once("message", (data) => {
     console.log("received instructions");
     const msg = JSON.parse(data);
     if (msg.status === "success") {
       console.log("planning: success");
-      execute(msg.instructions, sockets, init_operation_id_arr);
+      execute(msg.instructions, sockets, init_operation_id_arr, ws);
     } else {
       console.log("planning: failure");
       process.exit(0);
@@ -119,9 +120,51 @@ const setup = async () => {
   });
 };
 
-const execute = async (instructions, sockets, init_operation_id_arr) => {
+const execute = async (instructions, sockets, init_operation_id_arr, ws) => {
   let actions = [];
   let fin_agents_num = 0;
+
+  let progress_indexes = [];   // finish
+  let committed_indexes = [];  // cannot change
+  for (let i = 0; i < num_agents; ++i) {
+    committed_indexes.push(-1);
+    progress_indexes.push(-1);
+  }
+
+  // re-planning
+  ws.on("message", (data) => {
+    const msg = JSON.parse(data);
+
+    // check consistency
+    for (let i = 0; i < num_agents; ++i) {
+      if (committed_indexes[i] > msg.committed_indexes[i] - 1) {
+        console.log("receive re-planning, commit: %s, rejected", msg.committed_indexes.map(e => e-1));
+        return;
+      }
+    }
+    console.log("receive re-planning, commit: %s, accepted", msg.committed_indexes.map(e => e-1));
+
+    for (let i = 0; i < num_agents; ++i) {
+      let last_index = msg.committed_indexes[i] - 1;  // Julia -> node.js
+      instructions[i] = instructions[i].filter((e, k) => k <= last_index);
+      if (msg.instructions[i].length == 0) continue;
+      for (let action of msg.instructions[i]) instructions[i].push(action);
+      if (last_index >= 0) {
+        instructions[i][last_index].suc = [[i+1, msg.instructions[i][0].id]];
+        instructions[i][last_index+1].pre.push([i+1, instructions[i][last_index].id]);
+      }
+
+      // additional trigger
+      if (progress_indexes[i] == last_index) {
+        committed_indexes[i] = progress_indexes[i] + 1;
+        let inst = instructions[i][committed_indexes[i]];
+        let msg = { "type": "commit", "committed_indexes": committed_indexes };
+        ws.send(JSON.stringify(msg));
+        moveTo(i, inst.x_to, inst.y_to);
+        // console.log(`\t\t\t\t\t(agent ${(i + 1).toString().padStart(2)}, action ${(inst.id).padStart(10)}) is triggered`);
+      }
+    }
+  });
 
   for (const socket of sockets) {
     socket.on("message", data => {
@@ -130,26 +173,32 @@ const execute = async (instructions, sockets, init_operation_id_arr) => {
 
       // get current action
       let i = get_agent_from_socket(socket.id, msg.body.agent);
-      action_done = instructions[i][msg.body.operation_id - init_operation_id_arr[i] - 1];
+      let action_done = instructions[i][msg.body.operation_id - init_operation_id_arr[i] - 1];
+      progress_indexes[i] = instructions[i].findIndex(ele => ele["id"] == action_done.id);
 
       // update conditions
+      console.log(`agent ${(i + 1).toString().padStart(2)} finishes action ${(action_done.id).padStart(10)}`);
       for (const child of action_done["suc"]) {
         let j = child[0]-1;  // successor agent
         let id_j = child[1];  // successor action id
         let idx = instructions[j].findIndex(ele => ele["id"] == id_j);  // index
+        if (idx == -1) continue;
+
+        // found
         instructions[j][idx]["pre"] = instructions[j][idx]["pre"].filter(
           ele => !(ele[0]-1 == i && ele[1] == action_done["id"])
         );
         // trigger other actions
         if (instructions[j][idx]["pre"].length == 0) {
           let inst = instructions[j][idx];
-          console.log(
-            `agent ${(i + 1).toString().padStart(2)} finishes `
-              + `action ${(action_done.id).padStart(10)} `
-              + `then triggers action ${(id_j).padStart(10)} of `
-              + `agent ${(j + 1).toString().padStart(2)}`
-          );
+          // console.log(`\t\t\t\t\t(agent ${(j + 1).toString().padStart(2)}, action ${(id_j).padStart(10)}) is triggered`);
+
+          // update committed indexes
+          committed_indexes[j] = idx;
+          let msg = { "type": "commit", "committed_indexes": committed_indexes };
+          ws.send(JSON.stringify(msg));
           moveTo(j, inst.x_to, inst.y_to);
+          console.log("commit:", committed_indexes);
         }
       }
 
@@ -157,6 +206,7 @@ const execute = async (instructions, sockets, init_operation_id_arr) => {
       if (action_done["suc"].filter(ele => ele[0]-1 == i).length == 0) {
         ++fin_agents_num;
         playSound(i, 6);
+        // console.log(`agent ${(i + 1).toString().padStart(2)} finishes all actions`);
         if (fin_agents_num >= num_agents) finish();
       }
     });
@@ -168,6 +218,7 @@ const execute = async (instructions, sockets, init_operation_id_arr) => {
     if (inst["pre"].length != 0) continue;
     playSound(i, 3);
     moveTo(i, inst.x_to, inst.y_to);
+    committed_indexes[i] = 0;
   }
 };
 
