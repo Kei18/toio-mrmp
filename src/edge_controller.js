@@ -48,7 +48,7 @@ const startServer = (cubes) => {
       });
     });
     while (num_setup_agents < cubes.length) await sleep(500);
-    logger.info("initial locations: %s", init_locs);
+    logger.info("initial locations: %s", JSON.stringify(init_locs));
 
     // initialization
     socket.send(JSON.stringify({type: "init", body: init_locs}));

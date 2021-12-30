@@ -20,14 +20,12 @@ const {
 
 const logger = getLogger();
 
-const execute = async (instructions, sockets, init_operation_id_arr, ws, NETWORK, speed) => {
+const execute = async (plan_id, instructions, sockets, init_operation_id_arr, ws, NETWORK, speed) => {
   const N = instructions.length;
 
   // performance measurement
   const time_start = performance.now();
   let time_for_costs = Array(N).fill(0);
-
-  let plan_id = 1;  // for Julia
   let fin_agents_num = 0;  // to judge termination
   let progress_indexes = Array(N).fill(-1);   // finish actions
   let acting_agents = Array(N).fill(false);   // acting -> true
@@ -51,7 +49,7 @@ const execute = async (instructions, sockets, init_operation_id_arr, ws, NETWORK
     // case: inconsistent -> update
     committed_indexes[i] = idx;
     committed_indexes = get_consistent_commit(instructions, committed_indexes, commit_offset);
-    logger.info("new commit:".padStart(55)+"%s", committed_indexes);
+    logger.info("new commit:".padStart(60)+"%s", committed_indexes);
     let msg = {"type": "commit", "plan_id": plan_id, "committed_indexes": committed_indexes};
     ws.send(JSON.stringify(msg));
   };
@@ -60,7 +58,7 @@ const execute = async (instructions, sockets, init_operation_id_arr, ws, NETWORK
   ws.on("message", (data) => {
     const msg = JSON.parse(data);
     const commited_indexes_str = msg.committed_indexes.map(e => e-1);
-    logger.info("receive re-plannig:".padStart(55)+"%s", commited_indexes_str);
+    logger.info("receive re-plannig:".padStart(60)+"%s", commited_indexes_str);
 
     // lock (mutex with actions)
     mutex.runExclusive(() => {
@@ -72,7 +70,7 @@ const execute = async (instructions, sockets, init_operation_id_arr, ws, NETWORK
       let return_msg = {"type": "commit", "plan_id": plan_id, "committed_indexes": committed_indexes};
       ws.send(JSON.stringify(return_msg));
       if (invalid) {
-        logger.info("reject plan:".padStart(55)+"%s", commited_indexes_str);
+        logger.info("reject plan:".padStart(60)+"%s", commited_indexes_str);
         return;
       }
       // update plan
@@ -98,7 +96,7 @@ const execute = async (instructions, sockets, init_operation_id_arr, ws, NETWORK
           instructions[i][l+1].pre.push([i+1, instructions[i][l].id]);
         }
       }
-      logger.info("update plan:".padStart(55)+"%s", commited_indexes_str);
+      logger.info("update plan:".padStart(60)+"%s", commited_indexes_str);
     }).then(() => {
       for (let i = 0; i < N; ++i) {
         // additional trigger
@@ -273,7 +271,7 @@ const setup = async (args) => {
     if (msg.status === "success") {
       logger.info("planning: success, planning time (ms): %f", planning_time);
       ws.removeAllListeners("error");
-      execute(msg.instructions, sockets, init_operation_id_arr, ws, NETWORK, args.max_speed);
+      execute(msg.plan_id, msg.instructions, sockets, init_operation_id_arr, ws, NETWORK, args.max_speed);
     } else {
       logger.info("planning: failure, planning time (ms): %f", planning_time);
       process.exit(0);
