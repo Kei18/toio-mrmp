@@ -5,11 +5,17 @@ const sleep = async (ms) => {
   return new Promise(r => setTimeout(r, ms));
 };
 
-const get_config = (args) => {
+const get_num_agents = (args) => {
   let config = yaml.load(fs.readFileSync(args.instance, 'utf8'));
-  const num_agents = Math.min(config["instance"]["agents"].length, args.num_agents);
+  return Math.min(config["instance"]["agents"].length, args.num_agents);
+};
+
+const get_config = (args, init_locations) => {
+  let config = yaml.load(fs.readFileSync(args.instance, 'utf8'));
+  const N = get_num_agents(args);
+  const num_agents = get_num_agents(args);
   config.instance.agents = config.instance.agents.slice(0, num_agents);
-  if (args.reversed === "true") {
+  if (args.reversed) {
     for (let i = 0; i < num_agents; ++i) {
       let tmp_x = config.instance.agents[i].x_init;
       let tmp_y = config.instance.agents[i].y_init;
@@ -19,36 +25,40 @@ const get_config = (args) => {
       config.instance.agents[i].y_goal = tmp_y;
     }
   }
+  if (args.use_current_starts) {
+    for (let i = 0; i < N; ++i) {
+      let locs = init_locations[i];
+      config.instance.agents[i].x_init = locs.x;
+      config.instance.agents[i].y_init = locs.y;
+    }
+  }
   return config;
 };
 
-const get_consistent_cut = (instructions, committed_indexes) => {
-  const num_agents = instructions.length;
-
-  // initialize table
-  let table = [];
-  let Q = [];
-  for (let i = 0; i < num_agents; ++i) {
-    table.push(Math.min(committed_indexes[i], instructions[i].length - 1));
-    Q.push(i);
-  }
+const get_consistent_commit = (instructions, inconsistent_indexes, offset=0) => {
+  const N = instructions.length;
+  // will be returned
+  let consistent_indexes = inconsistent_indexes.
+      map((k, i) => Math.min(k + offset, instructions[i].length-1));
+  // agent queue
+  let Q = Array(N).fill(0).map((e, i) => i);
   while (Q.length > 0) {
+    // pop
     let i = Q[0];
     Q.shift();
-
-    for (let predecessor of instructions[i][table[i]].pre) {
+    if (consistent_indexes[i] < 0) continue;
+    for (let predecessor of instructions[i][consistent_indexes[i]].pre) {
       let j = predecessor[0] - 1;  // Julia index
+      if (j == i) continue;  // skip self
       let id = predecessor[1];
       let l = instructions[j].findIndex(ele => ele.id == id);
-      if (j == i) continue;  // skip self
-      if (table[j] < l) {
+      if (consistent_indexes[j] < l) {
         Q.push(j);
-        table[j] = l;
+        consistent_indexes[j] = l;
       }
     }
   }
-
-  return table;
+  return consistent_indexes;
 };
 
-module.exports = { sleep, get_config, get_consistent_cut };
+module.exports = { sleep, get_config, get_num_agents, get_consistent_commit };
