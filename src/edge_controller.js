@@ -3,7 +3,9 @@
 const { NearScanner } = require('@toio/scanner');
 const { io } = require("socket.io-client");
 const { ArgumentParser } = require("argparse");
-const { sleep } = require("./utils");
+const { sleep, getLogger } = require("./utils");
+
+const logger = getLogger();
 
 const parser = new ArgumentParser({});
 parser.add_argument('-k', '--agents', {help: "number of agents", default: 1});
@@ -15,17 +17,26 @@ const toioSetup = async (num_agents) => {
   let cubes = await new NearScanner(num_agents).start();
   cubes.sort(function(a, b) { return (a.id < b.id) ? 1 : -1; });
   for (let i = 0; i < cubes.length; ++i) await cubes[i].connect();
-  console.log("connected to %d robots", num_agents);
+  logger.info("connected to %d robots", num_agents);
+
+  const init_light_operations = [
+    {blue: 0, green: 0, red: 255, durationMs: 500},
+    {blue: 255, green: 255, red: 0, durationMs: 500},
+  ];
+  for (let i = 0; i < cubes.length; ++i) {
+    cubes[i].playPresetSound(7);
+    cubes[i].turnOnLightWithScenario(init_light_operations, 3);
+  }
   return cubes;
 };
 
 const startServer = (cubes) => {
-  console.log("setup server");
+  logger.info("setup server");
 
   // start client
   const socket = io(`ws://${args.addr}:${args.port}/`);
   socket.on("connect", async () => {
-    console.log("connected to controller: %s", socket.id);
+    logger.info("connected to controller: %s", socket.id);
 
     let init_locs = [];
     let num_setup_agents = 0;
@@ -37,7 +48,7 @@ const startServer = (cubes) => {
       });
     });
     while (num_setup_agents < cubes.length) await sleep(500);
-    console.log("initial locations: ", init_locs);
+    logger.info("initial locations: %s", init_locs);
 
     // initialization
     socket.send(JSON.stringify({type: "init", body: init_locs}));
@@ -45,7 +56,7 @@ const startServer = (cubes) => {
 
   // instruction
   socket.on("message", (data) => {
-    console.log("receive message: %s", data);
+    logger.info("receive message: %s", data);
     const msg = JSON.parse(data);
     let params = JSON.stringify(msg.params);
     params = params.substr(1, params.length-2);
@@ -60,7 +71,7 @@ const startServer = (cubes) => {
     ));
   }));
 
-  socket.on("disconnect", () => { console.log("disconnected"); });
+  socket.on("disconnect", () => { logger.info("disconnected"); });
 };
 
 toioSetup(args.agents).then(startServer);

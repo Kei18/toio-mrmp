@@ -26,7 +26,7 @@
     "gh-pages": "^2.0.1",
     "lerna": "^3.14.1",
     "live-server": "^1.2.1",
-    "prettier": "^1.17.1",
+    "prettier": "^2.5.1",
     "rimraf": "^2.6.3",
     "typedoc": "^0.16.9",
     "typedoc-plugin-lerna-packages": "^0.1.5"
@@ -35,6 +35,8 @@
     "argparse": "^2.0.1",
     "async-mutex": "^0.3.2",
     "js-yaml": "^4.1.0",
+    "pino": "^7.6.2",
+    "pino-pretty": "^7.3.0",
     "socket.io": "^4.4.0",
     "socket.io-client": "^4.4.0",
     "ws": "^8.3.0"

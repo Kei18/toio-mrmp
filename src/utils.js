@@ -1,9 +1,12 @@
 const fs = require('fs');
 const yaml = require('js-yaml');
+const pino = require('pino');
 
 const sleep = async (ms) => {
   return new Promise(r => setTimeout(r, ms));
 };
+
+const isempty = (arr) => { return arr.length == 0; };
 
 const get_num_agents = (args) => {
   let config = yaml.load(fs.readFileSync(args.instance, 'utf8'));
@@ -35,30 +38,98 @@ const get_config = (args, init_locations) => {
   return config;
 };
 
-const get_consistent_commit = (instructions, inconsistent_indexes, offset=0) => {
+const get_consistent_commit = (instructions, committed_indexes, offset=0) => {
   const N = instructions.length;
   // will be returned
-  let consistent_indexes = inconsistent_indexes.
-      map((k, i) => Math.min(k + offset, instructions[i].length-1));
+  let consistent_indexes = committed_indexes
+      .map((k, i) => Math.min(k + offset, instructions[i].length-1));
   // agent queue
   let Q = Array(N).fill(0).map((e, i) => i);
-  while (Q.length > 0) {
+  while (!isempty(Q)) {
     // pop
     let i = Q[0];
     Q.shift();
     if (consistent_indexes[i] < 0) continue;
-    for (let predecessor of instructions[i][consistent_indexes[i]].pre) {
-      let j = predecessor[0] - 1;  // Julia index
-      if (j == i) continue;  // skip self
-      let id = predecessor[1];
-      let l = instructions[j].findIndex(ele => ele.id == id);
-      if (consistent_indexes[j] < l) {
-        Q.push(j);
-        consistent_indexes[j] = l;
+    for (let k = Math.max(committed_indexes[i], 0); k <= consistent_indexes[i]; ++k) {
+      for (let predecessor of instructions[i][k].pre) {
+        let j = predecessor[0] - 1;  // Julia index
+        if (j == i) continue;  // skip self
+        let id = predecessor[1];
+        let l = instructions[j].findIndex(ele => ele.id == id);
+        if (consistent_indexes[j] < l) {
+          Q.push(j);
+          consistent_indexes[j] = l;
+        }
       }
     }
   }
   return consistent_indexes;
 };
 
-module.exports = { sleep, get_config, get_num_agents, get_consistent_commit };
+const get_agent_from_socket = (socket_id, agent_index, network) => {
+  for (let i = 0; i < network.length; ++i) {
+    if (network[i].socket.id == socket_id && network[i].offset == agent_index) {
+      return i;
+    }
+  }
+  return nothing;
+};
+
+const moveTo = (network, i, x, y, speed=80) => {
+  let ele = network[i];
+  ele.socket.send(JSON.stringify({
+    agent: ele.offset, operation: "moveTo", params: [
+      [{x: x, y: y}],
+      {maxSpeed: speed, moveType: 2, speedType: 3}
+    ]
+  }));
+};
+
+const playSound = (network, i, sound_type=0) => {
+  let ele = network[i];
+  ele.socket.send(JSON.stringify({
+    agent: ele.offset, operation: "playPresetSound", params: [sound_type]
+  }));
+};
+
+const turnOnLight= (network, i, operation={blue: 255, green: 0, red: 0, durationMs: 2550}) => {
+  let ele = network[i];
+  ele.socket.send(JSON.stringify({
+    agent: ele.offset, operation: "turnOnLightWithScenario", params: [[operation]]
+  }));
+};
+
+const turnOffLight= (network, i) => {
+  let ele = network[i];
+  ele.socket.send(JSON.stringify({
+    agent: ele.offset, operation: "turnOffLight", params: []
+  }));
+};
+
+const getLogger = () => {
+  return pino({
+    transport: {
+      target: 'pino-pretty',
+      options: {
+        translateTime: "yyyy-mm-dd HH:MM:ss.l",
+        ignore: 'pid,hostname',
+        singleLine: true
+      }
+    },
+  });
+};
+
+
+module.exports = {
+  sleep,
+  isempty,
+  get_config,
+  get_num_agents,
+  get_consistent_commit,
+  get_agent_from_socket,
+  moveTo,
+  playSound,
+  turnOnLight,
+  turnOffLight,
+  getLogger
+};

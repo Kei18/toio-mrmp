@@ -1,8 +1,8 @@
 server:
-  address: "127.0.0.1"
+  address: '127.0.0.1'
   port: 8081
 instance:
-  type: "init"
+  type: 'init'
   field:
     x: 335
     y: 675
