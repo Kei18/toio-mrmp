@@ -1,3 +1,7 @@
+/*
+ * get coordination of location of robot
+ */
+
 const { NearestScanner } = require('@toio/scanner');
 
 async function main() {
