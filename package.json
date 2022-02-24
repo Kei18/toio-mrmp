@@ -1,17 +1,17 @@
 {
   "private": true,
-  "name": "toio-exec",
+  "name": "toio-mrmp",
   "workspaces": [
     "packages/*",
     "src/*"
   ],
-  "repository": "https://github.com/Kei18/toio-exec.git",
+  "repository": "https://github.com/Kei18/toio-mrmp.git",
   "author": "Keisuke Okumura",
   "license": "MIT",
   "scripts": {
     "build": "lerna run build",
     "clean": "lerna run clean",
-    "serve": "node src/controller.js",
+    "solve": "node src/controller.js",
     "loc": "node src/loc.js"
   },
   "devDependencies": {
@@ -33,6 +33,7 @@
     "argparse": "^2.0.1",
     "async-mutex": "^0.3.2",
     "js-yaml": "^4.1.0",
+    "keypress": "^0.2.1",
     "pino": "^7.6.2",
     "pino-pretty": "^7.3.0",
     "socket.io": "^4.4.0",

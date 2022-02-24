@@ -1,0 +1,124 @@
+field:
+  x: 440
+  y: 475
+  size: 410
+  # x_max: 840
+  # y_max: 850
+save_fig: false
+seed: 1
+solver:
+  _target_: MRMP.SSSP
+  TIME_LIMIT: 120
+  VERBOSE: 2
+  epsilon: 0.2
+  num_vertex_expansion: 30
+  init_min_dist_thread: 0.05
+common_params: &common_params
+  x_init: 0
+  y_init: 0
+  rad: 18
+obstacles:
+agents:
+  # S (upper left)
+  - x_goal: 619
+    y_goal: 531
+    <<: *common_params
+  - x_goal: 570
+    y_goal: 510
+    <<: *common_params
+  - x_goal: 516
+    y_goal: 522
+    <<: *common_params
+  - x_goal: 527
+    y_goal: 575
+    <<: *common_params
+  - x_goal: 574
+    y_goal: 591
+    <<: *common_params
+  - x_goal: 612
+    y_goal: 623
+    <<: *common_params
+  - x_goal: 567
+    y_goal: 646
+    <<: *common_params
+  - x_goal: 519
+    y_goal: 640
+    <<: *common_params
+
+  # S (lower left, y + 197)
+  - x_goal: 619
+    y_goal: 728
+    <<: *common_params
+  - x_goal: 570
+    y_goal: 707
+    <<: *common_params
+  - x_goal: 516
+    y_goal: 719
+    <<: *common_params
+  - x_goal: 527
+    y_goal: 772
+    <<: *common_params
+  - x_goal: 574
+    y_goal: 788
+    <<: *common_params
+  - x_goal: 612
+    y_goal: 820
+    <<: *common_params
+  - x_goal: 567
+    y_goal: 843
+    <<: *common_params
+  - x_goal: 519
+    y_goal: 837
+    <<: *common_params
+
+  # S (upper right, x + 159)
+  - x_goal: 778
+    y_goal: 531
+    <<: *common_params
+  - x_goal: 729
+    y_goal: 510
+    <<: *common_params
+  - x_goal: 675
+    y_goal: 522
+    <<: *common_params
+  - x_goal: 686
+    y_goal: 575
+    <<: *common_params
+  - x_goal: 733
+    y_goal: 591
+    <<: *common_params
+  - x_goal: 771
+    y_goal: 623
+    <<: *common_params
+  - x_goal: 726
+    y_goal: 646
+    <<: *common_params
+  - x_goal: 678
+    y_goal: 640
+    <<: *common_params
+
+  # P
+  - x_goal: 683
+    y_goal: 717
+    <<: *common_params
+  - x_goal: 683
+    y_goal: 755
+    <<: *common_params
+  - x_goal: 683
+    y_goal: 801
+    <<: *common_params
+  - x_goal: 683
+    y_goal: 846
+    <<: *common_params
+  - x_goal: 730
+    y_goal: 717
+    <<: *common_params
+  - x_goal: 779
+    y_goal: 732
+    <<: *common_params
+  - x_goal: 779
+    y_goal: 775
+    <<: *common_params
+  - x_goal: 728
+    y_goal: 784
+    <<: *common_params

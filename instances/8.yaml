@@ -1,0 +1,45 @@
+field:
+  x: 685
+  y: 245
+  size: 230
+  # x_max: 915
+  # y_max: 475
+save_fig: false
+seed: 1
+solver:
+  _target_: MRMP.SSSP
+  TIME_LIMIT: 120
+  VERBOSE: 2
+  epsilon: 0.2
+  num_vertex_expansion: 30
+  init_min_dist_thread: 0.05
+common_params: &common_params
+  x_init: 0
+  y_init: 0
+  rad: 18
+obstacles:
+agents:
+  - x_goal: 723
+    y_goal: 332
+    <<: *common_params
+  - x_goal: 723
+    y_goal: 382
+    <<: *common_params
+  - x_goal: 773
+    y_goal: 332
+    <<: *common_params
+  - x_goal: 773
+    y_goal: 382
+    <<: *common_params
+  - x_goal: 823
+    y_goal: 332
+    <<: *common_params
+  - x_goal: 823
+    y_goal: 382
+    <<: *common_params
+  - x_goal: 873
+    y_goal: 332
+    <<: *common_params
+  - x_goal: 873
+    y_goal: 382
+    <<: *common_params
